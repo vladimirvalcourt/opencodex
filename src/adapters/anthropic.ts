@@ -11,6 +11,22 @@ import type {
 } from "../types";
 import { ANTHROPIC_OAUTH_BETA, CLAUDE_CODE_SYSTEM_INSTRUCTION, applyClaudeToolPrefix, stripClaudeToolPrefix } from "../oauth/anthropic";
 
+/** Safe ceiling for `max_tokens` (thinking + visible output) across current Claude 4.x models. */
+const REASONING_MAX_TOKENS_CEILING = 32_000;
+
+/** Map a Responses reasoning effort to an Anthropic extended-thinking budget (tokens, >= 1024). */
+function reasoningBudget(effort: string): number {
+  switch (effort) {
+    case "minimal": return 1024;
+    case "low": return 4096;
+    case "high": return 16384;
+    case "xhigh": return 24576;
+    case "max": return 32000;
+    case "medium":
+    default: return 8192;
+  }
+}
+
 function messagesToAnthropicFormat(parsed: OcxParsedRequest, isOAuth: boolean): { system: string | undefined; messages: unknown[] } {
   const system = parsed.context.systemPrompt?.join("\n\n") || undefined;
   const messages: unknown[] = [];
@@ -98,7 +114,19 @@ export function createAnthropicAdapter(provider: OcxProviderConfig): ProviderAda
       if (parsed.options.stopSequences) body.stop_sequences = parsed.options.stopSequences;
 
       if (parsed.options.reasoning) {
-        body.thinking = { type: "enabled", budget_tokens: parsed.options.maxOutputTokens ?? 8192 };
+        // Anthropic requires max_tokens > thinking.budget_tokens (max_tokens caps thinking +
+        // visible output) and budget_tokens >= 1024. Codex sends the SAME value for both, which
+        // 400s ("max_tokens must be greater than thinking.budget_tokens"). Size them so max_tokens
+        // always exceeds the budget within a model-safe ceiling, reserving room for visible output.
+        const maxOut = parsed.options.maxOutputTokens ?? 8192;
+        const wantBudget = reasoningBudget(parsed.options.reasoning);
+        const maxTokens = Math.min(REASONING_MAX_TOKENS_CEILING, Math.max(maxOut, wantBudget + 8192));
+        const budget = Math.max(1024, Math.min(wantBudget, maxTokens - 4096));
+        body.max_tokens = maxTokens;
+        body.thinking = { type: "enabled", budget_tokens: budget };
+        // Extended thinking disallows temperature != 1 and top_p — drop both or the API 400s.
+        delete body.temperature;
+        delete body.top_p;
       }
 
       if (parsed.options.toolChoice) {
