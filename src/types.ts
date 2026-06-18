@@ -65,6 +65,8 @@ export interface OcxToolCall {
   arguments: Record<string, unknown>;
   customWireName?: string;
   thoughtSignature?: string;
+  /** MCP namespace (e.g. "mcp__context7") when this call targets a namespaced tool. */
+  namespace?: string;
 }
 
 export type OcxAssistantContentPart = OcxTextContent | OcxThinkingContent | OcxToolCall;
@@ -74,6 +76,18 @@ export interface OcxTool {
   description: string;
   parameters: Record<string, unknown>;
   strict?: boolean;
+  /** MCP namespace (e.g. "mcp__context7") for tools flattened out of a Responses "namespace" tool. */
+  namespace?: string;
+}
+
+/**
+ * Wire name a chat model sees for a tool. Namespaced (MCP) tools are flattened to
+ * "<namespace>__<name>" so they survive the chat-completions function-tool format;
+ * the proxy maps this back to {namespace, name} on the return trip (Codex routes MCP
+ * calls by an explicit `namespace` field, not by parsing the name).
+ */
+export function namespacedToolName(namespace: string | undefined, name: string): string {
+  return namespace ? `${namespace}__${name}` : name;
 }
 
 export interface OcxRequestOptions {

@@ -1,5 +1,6 @@
 import type { ProviderAdapter } from "./base";
 import type { AdapterEvent, OcxAssistantMessage, OcxMessage, OcxParsedRequest, OcxProviderConfig, OcxTextContent, OcxToolCall } from "../types";
+import { namespacedToolName } from "../types";
 
 function messagesToChatFormat(parsed: OcxParsedRequest): unknown[] {
   const out: unknown[] = [];
@@ -38,7 +39,7 @@ function messagesToChatFormat(parsed: OcxParsedRequest): unknown[] {
           chatMsg.tool_calls = toolCalls.map(tc => ({
             id: tc.id,
             type: "function",
-            function: { name: tc.name, arguments: JSON.stringify(tc.arguments) },
+            function: { name: namespacedToolName(tc.namespace, tc.name), arguments: JSON.stringify(tc.arguments) },
           }));
           if (!chatMsg.content) chatMsg.content = null;
         }
@@ -67,7 +68,7 @@ function toolsToChatFormat(parsed: OcxParsedRequest): unknown[] | undefined {
   return parsed.context.tools.map(t => ({
     type: "function",
     function: {
-      name: t.name,
+      name: namespacedToolName(t.namespace, t.name),
       description: t.description,
       parameters: t.parameters,
       ...(t.strict !== undefined ? { strict: t.strict } : {}),

@@ -70,15 +70,30 @@ function mapToolChoice(value: unknown): OcxRequestOptions["toolChoice"] {
 function buildTools(tools: unknown[] | undefined): OcxTool[] | undefined {
   if (!tools) return undefined;
   const out: OcxTool[] = [];
-  for (const t of tools) {
-    if (!isObj(t) || t.type !== "function") continue;
+  const pushFn = (t: Record<string, unknown>, namespace?: string) => {
     const tool: OcxTool = {
       name: t.name as string,
       description: (t.description as string) ?? "",
       parameters: (t.parameters ?? {}) as Record<string, unknown>,
     };
     if (t.strict !== undefined) tool.strict = t.strict as boolean;
+    if (namespace) tool.namespace = namespace;
     out.push(tool);
+  };
+  for (const t of tools) {
+    if (!isObj(t)) continue;
+    if (t.type === "function" && typeof t.name === "string") {
+      pushFn(t);
+    } else if (t.type === "namespace" && Array.isArray(t.tools)) {
+      // MCP tools arrive grouped under a namespace tool; flatten the inner function tools so
+      // chat-completions models receive them (round-trip restores the namespace in the bridge).
+      const ns = typeof t.name === "string" ? t.name : undefined;
+      for (const inner of t.tools as unknown[]) {
+        if (isObj(inner) && inner.type === "function" && typeof inner.name === "string") pushFn(inner, ns);
+      }
+    }
+    // custom (apply_patch), tool_search, web_search, image_generation are not representable as
+    // plain chat function tools and are intentionally dropped on this path.
   }
   return out.length > 0 ? out : undefined;
 }
@@ -176,7 +191,7 @@ export function parseRequest(body: unknown): OcxParsedRequest {
       }
 
       if (effectiveType === "function_call") {
-        const call = item as { id?: string; call_id: string; name: string; arguments?: string };
+        const call = item as { id?: string; call_id: string; name: string; arguments?: string; namespace?: string };
         let args: Record<string, unknown>;
         try {
           const raw: unknown = JSON.parse(call.arguments ?? "{}");
@@ -187,6 +202,7 @@ export function parseRequest(body: unknown): OcxParsedRequest {
         const toolCall: OcxToolCall = {
           type: "toolCall", id: call.call_id, name: call.name, arguments: args,
           ...(call.id ? { thoughtSignature: call.id } : {}),
+          ...(call.namespace ? { namespace: call.namespace } : {}),
         };
         ensureAssistantPlaceholder(messages, data.model, now).content.push(toolCall);
         continue;
