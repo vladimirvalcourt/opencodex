@@ -57,6 +57,9 @@ export async function describeImage(
       return { text: "", error: `vision sidecar HTTP ${res.status}: ${t.slice(0, 200)}` };
     }
     const parsed = await parseSidecarSSE(res);
+    // The backend can return HTTP 200 then stream a `response.failed`/`error` event with no text;
+    // surface that as a describe error instead of an empty (silently-blank) description.
+    if (!parsed.text.trim() && parsed.error) return { text: "", error: parsed.error };
     return { text: parsed.text };
   } catch (e) {
     return { text: "", error: e instanceof Error ? e.message : String(e) };
