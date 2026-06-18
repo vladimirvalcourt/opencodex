@@ -119,6 +119,7 @@ export function createOpenAIChatAdapter(provider: OcxProviderConfig): ProviderAd
       let buffer = "";
       let currentToolCallId = "";
       let currentToolCallName = "";
+      let pendingUsage: { inputTokens: number; outputTokens: number } | undefined;
 
       try {
         while (true) {
@@ -137,7 +138,7 @@ export function createOpenAIChatAdapter(provider: OcxProviderConfig): ProviderAd
                 yield { type: "tool_call_end" };
                 currentToolCallId = "";
               }
-              yield { type: "done" };
+              yield { type: "done", usage: pendingUsage };
               return;
             }
 
@@ -150,12 +151,9 @@ export function createOpenAIChatAdapter(provider: OcxProviderConfig): ProviderAd
 
             if (chunk.usage) {
               const u = chunk.usage as Record<string, number>;
-              yield {
-                type: "done",
-                usage: {
-                  inputTokens: u.prompt_tokens ?? 0,
-                  outputTokens: u.completion_tokens ?? 0,
-                },
+              pendingUsage = {
+                inputTokens: u.prompt_tokens ?? 0,
+                outputTokens: u.completion_tokens ?? 0,
               };
               continue;
             }
