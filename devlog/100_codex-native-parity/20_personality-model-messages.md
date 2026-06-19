@@ -100,10 +100,19 @@ Cons:
 - templates may change upstream;
 - provider-specific model families may need different identity wording.
 
-## Recommendation
+## Superseded Recommendation
 
-Phase 100 should start with Option B if the rewrite can be made robust and tested. If not, strip
-`model_messages` for all non-OpenAI routed models as a safer fallback.
+The initial recommendation was to try Option B first if rewrite could be made robust. The follow-up
+investigation supersedes that: routed non-OpenAI models should strip `model_messages` first.
+
+See:
+
+```text
+/Users/jun/Developer/new/700_projects/opencodex/devlog/100_codex-native-parity/21_model-messages-strip-first.md
+```
+
+Reason: `model_messages.instructions_template` is not a cosmetic field. Codex uses it before
+`base_instructions`, so the existing routed `base_instructions` rewrite can be bypassed.
 
 Minimum acceptance criteria:
 

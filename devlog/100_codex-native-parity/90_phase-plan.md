@@ -30,7 +30,7 @@ Tasks:
 
 Expected first policy:
 
-- rewrite or strip `model_messages`;
+- strip `model_messages` for routed models first;
 - delete `tool_mode`;
 - delete `multi_agent_version`;
 - delete or force `use_responses_lite = false`;
@@ -78,16 +78,19 @@ Primary files:
 
 ```text
 /Users/jun/Developer/new/700_projects/opencodex/src/codex-catalog.ts
-/Users/jun/Developer/new/700_projects/opencodex/src/providers/catalog.ts
+/Users/jun/Developer/new/700_projects/opencodex/src/generated/jawcode-model-metadata.ts
+/Users/jun/Developer/new/700_projects/opencodex/scripts/generate-jawcode-metadata.ts
 ```
 
 Tasks:
 
-1. Add provider/model context metadata where known.
-2. Populate `context_window`, `max_context_window`, `auto_compact_token_limit`, and related
+1. Add a build-time/generated jawcode metadata snapshot with provider/model context metadata where
+   known.
+2. Extend internal routed `CatalogModel` metadata before writing every field into Codex catalog JSON.
+3. Populate `context_window`, `max_context_window`, `auto_compact_token_limit`, and related
    metadata for routed entries.
-3. Use conservative defaults when exact model limits are unknown.
-4. Verify Codex token status and auto-compact behavior against at least one routed large-context
+4. Use conservative defaults when exact model limits are unknown.
+5. Verify Codex token status and auto-compact behavior against at least one routed large-context
    model.
 
 ### 100.5 Error and Header Fidelity
@@ -154,21 +157,31 @@ Runtime checks:
 
 ## Open Decisions
 
-1. Should routed models preserve Codex `/personality` by rewriting `model_messages`, or should
-   opencodex strip `model_messages` until provider-specific templates exist?
+1. Resolved: routed models should strip `model_messages` first. Provider-safe personality templates
+   can be added later.
 2. Should routed models inherit Codex feature-default multi-agent behavior by deleting
    `multi_agent_version`, or should opencodex force a specific version?
 3. Should routed models expose deferred `tool_search` by default?
-4. What conservative context-window default should apply when a provider model limit is unknown?
+4. What conservative context-window default should apply when jawcode has no exact provider/model
+   match?
 
 ## Proposed First Build Slice
 
 Start with catalog normalization only. It has the highest leverage and lowest runtime risk:
 
-1. normalize `model_messages`, `tool_mode`, `multi_agent_version`, and `use_responses_lite`;
-2. keep websocket disabled;
-3. add catalog snapshot tests;
-4. run `bun x tsc --noEmit`;
-5. manually inspect `codex debug models`.
+1. strip routed `model_messages`;
+2. normalize `tool_mode`, `multi_agent_version`, and `use_responses_lite`;
+3. preserve native OpenAI passthrough entries;
+4. keep websocket disabled;
+5. add catalog snapshot tests;
+6. run `bun x tsc --noEmit`;
+7. manually inspect `codex debug models`.
+
+Then add jawcode metadata snapshot support:
+
+1. generate a small opencodex-owned metadata projection from jawcode;
+2. map provider ids explicitly;
+3. enrich internal routed model metadata;
+4. write only Codex-verified catalog fields.
 
 Streaming/context/error parity should follow after catalog semantics are stable.

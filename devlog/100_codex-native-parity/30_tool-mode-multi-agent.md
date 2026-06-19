@@ -190,5 +190,7 @@ Normalize both fields deliberately in `deriveEntry()`:
 2. For non-OpenAI routed entries, either delete both fields and let Codex feature defaults apply, or
    set a project-wide explicit policy.
 3. Prefer deletion first unless opencodex has a strong reason to force code-mode or V2 for routed
-   models.
+   models. Deletion does not disable the user's configured/default multi-agent behavior; it lets
+   Codex resolve the feature default (including V2 when the user has enabled V2) instead of letting
+   the cloned native template force a selector.
 4. Add catalog snapshot tests proving routed entries do not inherit these selectors accidentally.

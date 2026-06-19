@@ -71,8 +71,9 @@ For hosted web search, opencodex mitigates at request time:
 Relevant local paths:
 
 ```text
-/Users/jun/Developer/new/700_projects/opencodex/src/responses/parser.ts:120
 /Users/jun/Developer/new/700_projects/opencodex/src/responses/parser.ts:134
+/Users/jun/Developer/new/700_projects/opencodex/src/responses/parser.ts:141
+/Users/jun/Developer/new/700_projects/opencodex/src/responses/parser.ts:142
 /Users/jun/Developer/new/700_projects/opencodex/src/responses/parser.ts:380
 /Users/jun/Developer/new/700_projects/opencodex/src/web-search/index.ts:30
 /Users/jun/Developer/new/700_projects/opencodex/src/server.ts:159
@@ -100,3 +101,6 @@ Keep the two search concepts separate:
    tool or suppressed with predictable behavior.
 4. Document that native OpenAI passthrough can keep hosted search metadata, while non-OpenAI routed
    models depend on opencodex sidecar search.
+
+See `11_search-defaults-and-inherited-state.md` for the concrete native model defaults and current
+observed opencodex catalog state.

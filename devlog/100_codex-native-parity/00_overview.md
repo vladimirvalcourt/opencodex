@@ -19,10 +19,15 @@ The investigation was split lexicographically by decade:
 | File | Topic |
 | --- | --- |
 | `10_search-and-tool-discovery.md` | `supports_search_tool`, `web_search_tool_type`, hosted vs deferred search fallback |
+| `11_search-defaults-and-inherited-state.md` | Native Codex search defaults and current opencodex inherited catalog state |
 | `20_personality-model-messages.md` | `model_messages`, `supports_personality`, prompt identity/personality support |
+| `21_model-messages-strip-first.md` | Follow-up decision: strip `model_messages` from routed models first |
 | `30_tool-mode-multi-agent.md` | `tool_mode`, `multi_agent_version`, code-mode and subagent selector behavior |
 | `40_responses-lite-websockets.md` | `use_responses_lite`, `supports_websockets`, HTTP/SSE vs WS viability |
+| `41_responses-lite-policy.md` | Follow-up policy for `use_responses_lite` inheritance |
 | `50_streaming-thinking-context.md` | intermediate text, thinking blocks, token usage, context window metadata |
+| `51_raw-reasoning-bridge.md` | Raw `response.reasoning_text.delta` evidence and required bridge shape |
+| `60_jawcode-metadata-snapshot.md` | jawcode metadata reuse plan for context/capability defaults |
 | `90_phase-plan.md` | implementation order and verification gates |
 
 ## Primary Finding
@@ -54,8 +59,8 @@ Use native Codex metadata only as a structural template. For routed entries:
 
 ## Highest Priority Fixes
 
-1. Rewrite or strip `model_messages` for routed models so GPT/Codex/OpenAI identity does not leak
-   through `instructions_template`.
+1. Strip `model_messages` from routed non-OpenAI models first so GPT/Codex/OpenAI identity does not
+   leak through `instructions_template`.
 2. Normalize `tool_mode`, `multi_agent_version`, and `use_responses_lite` instead of inheriting them
    silently from the native template.
 3. Do not set `supports_websockets = true` until opencodex has an end-to-end Responses websocket
@@ -63,6 +68,21 @@ Use native Codex metadata only as a structural template. For routed entries:
 4. Add provider/model-specific context-window metadata instead of inheriting native GPT limits.
 5. Extend usage/reasoning streaming parity so Codex receives cached/reasoning token details and the
    correct reasoning channel shape.
+
+## Follow-up Decision Update
+
+The follow-up investigation changed the first implementation recommendation:
+
+```text
+Earlier: try rewriting model_messages first.
+Now: strip model_messages from routed non-OpenAI entries first.
+```
+
+Reason: Codex prefers `model_messages.instructions_template` over `base_instructions`. The current
+opencodex catalog rewrite only changes `base_instructions`, so routed models cloned from native
+`gpt-5.5` can still receive the native GPT/Codex template. Stripping is the lowest-risk way to make
+Codex use the already-rewritten `base_instructions` and disables `/personality` only until
+provider-safe templates exist.
 
 ## Source Baseline
 
