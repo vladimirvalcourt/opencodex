@@ -34,10 +34,12 @@ bun run build
 | `.github/workflows/ci.yml` | `pull_request`, `push` to `main`, or manual dispatch when runtime/package paths change | Short Linux + Windows quality gate for runtime and release-helper changes. |
 | `.github/workflows/release.yml` | Manual dispatch only | npm publish/dry-run workflow. It requires the exact `GITHUB_SHA` to have a successful Cross-platform CI run before publish or dry-run. |
 | `.github/workflows/deploy-docs.yml` | `push` to `main` touching `docs-site/**` or the workflow, or manual dispatch | Build and publish the Astro/Starlight docs site to GitHub Pages. |
+| `.github/workflows/service-lifecycle.yml` | `push` touching `src/service.ts`, `src/cli.ts`, or the workflow, or manual dispatch | Linux systemd smoke test: install, verify, `ocx stop` stops the service, uninstall. |
 
 Docs-only changes intentionally route through the docs workflow instead of the runtime CI gate. If a
 docs change also edits runtime/package/release files, run the relevant local runtime checks before
-push and let `ci.yml` provide the Linux/Windows confirmation.
+push and let `ci.yml` provide the Linux/Windows confirmation. Service-related changes
+(`src/service.ts`, `src/cli.ts`) additionally trigger the `service-lifecycle.yml` smoke test on Linux.
 
 ## Root README
 
