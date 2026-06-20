@@ -77,7 +77,7 @@ describe("Phase 100 Codex-native parity smoke", () => {
 
     const catalog = buildCatalogEntries(nativeTemplate(), ["gpt-5.5"], [
       { provider: "opencode-go", id: "deepseek-v4-pro" },
-    ]);
+    ], undefined, false);
     const routed = catalog.find(entry => entry.slug === "opencode-go/deepseek-v4-pro");
     expect(routed).toMatchObject({
       web_search_tool_type: "text_and_image",

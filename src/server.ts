@@ -8,7 +8,7 @@ import { createResponsesPassthroughAdapter } from "./adapters/openai-responses";
 import { bridgeToResponsesSSE, buildResponseJSON, formatErrorResponse } from "./bridge";
 import { pumpSseToWebSocket, type WsData } from "./ws-bridge";
 import type { ServerWebSocket } from "bun";
-import { DEFAULT_SUBAGENT_MODELS, loadConfig, saveConfig } from "./config";
+import { DEFAULT_SUBAGENT_MODELS, loadConfig, saveConfig, websocketsEnabled } from "./config";
 import { parseRequest } from "./responses/parser";
 import { routeModel } from "./router";
 import { namespacedToolName } from "./types";
@@ -543,7 +543,7 @@ export function startServer(port?: number) {
           // Codex client → Codex catalog shape: native gpt + namespaced routed models,
           // cloned from a native template so required fields (base_instructions, etc.) are present.
           // Pass the subagent picks so featured models lead by priority (matches the on-disk file).
-          return jsonResponse({ models: buildCatalogEntries(loadCatalogTemplate(), nativeSlugs, goOrdered, config.subagentModels, config.websockets ?? false) });
+          return jsonResponse({ models: buildCatalogEntries(loadCatalogTemplate(), nativeSlugs, goOrdered, config.subagentModels, websocketsEnabled(config)) });
         }
         // OpenAI list shape: native gpt bare + routed models namespaced "<provider>/<id>"
         const data = [

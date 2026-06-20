@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { atomicWriteFile } from "./config";
+import { atomicWriteFile, websocketsEnabled } from "./config";
 import { restoreCodexCatalog } from "./codex-catalog";
 import { CODEX_CONFIG_PATH, CODEX_PROFILE_PATH, DEFAULT_CATALOG_PATH, parseTomlString, readRootTomlString, tomlString } from "./codex-paths";
 import type { OcxConfig } from "./types";
@@ -14,7 +14,7 @@ const OCX_SECTION_MARKER = "# Auto-injected by opencodex";
  * whatever `[table]` happened to be open last (e.g. `[plugins."chrome@openai-bundled"]`), so Codex
  * never saw a global model_provider and silently fell back to the `openai` (ChatGPT) provider.
  */
-function buildProviderTableBlock(port: number): string {
+export function buildProviderTableBlock(port: number, supportsWebsockets = true): string {
   const lines = [
     "",
     OCX_SECTION_MARKER,
@@ -24,6 +24,7 @@ function buildProviderTableBlock(port: number): string {
     'wire_api = "responses"',
     "requires_openai_auth = true",
   ];
+  if (supportsWebsockets) lines.push("supports_websockets = true");
   return lines.join("\n") + "\n";
 }
 
@@ -154,7 +155,7 @@ function buildProfileFile(port: number, catalogPath: string): string {
   ].join("\n");
 }
 
-export async function injectCodexConfig(port: number, _config?: OcxConfig): Promise<{ success: boolean; message: string }> {
+export async function injectCodexConfig(port: number, config?: OcxConfig): Promise<{ success: boolean; message: string }> {
   if (!existsSync(CODEX_CONFIG_PATH)) {
     return { success: false, message: `Codex config not found at ${CODEX_CONFIG_PATH}. Is Codex installed?` };
   }
@@ -178,7 +179,7 @@ export async function injectCodexConfig(port: number, _config?: OcxConfig): Prom
   // 1) Root key BEFORE the first table header (must be a global, not nested under a table).
   content = setRootModelProvider(content);
   // 2) Provider table appended at EOF (position-independent).
-  content = content.trimEnd() + "\n" + buildProviderTableBlock(port);
+  content = content.trimEnd() + "\n" + buildProviderTableBlock(port, websocketsEnabled(config ?? {}));
 
   writeFileSync(CODEX_CONFIG_PATH, content, "utf-8");
   writeFileSync(CODEX_PROFILE_PATH, buildProfileFile(port, catalogPath), "utf-8");
