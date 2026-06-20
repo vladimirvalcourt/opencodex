@@ -1,6 +1,9 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { runWebSearch } from "../src/web-search/executor";
+import { runWithWebSearch } from "../src/web-search/loop";
 import { describeImage } from "../src/vision/describe";
+import { parseRequest } from "../src/responses/parser";
+import type { ProviderAdapter } from "../src/adapters/base";
 import type { OcxProviderConfig } from "../src/types";
 
 const originalFetch = globalThis.fetch;
@@ -30,6 +33,39 @@ function installAbortAwareFetch(): () => AbortSignal {
 }
 
 describe("sidecar abort propagation", () => {
+  test("web-search loop routed-provider fetch observes the WebSocket turn abort signal", async () => {
+    const getSignal = installAbortAwareFetch();
+    const turn = new AbortController();
+    const adapter: ProviderAdapter = {
+      name: "mock",
+      buildRequest: () => ({ url: "https://routed.test/v1/chat/completions", method: "POST", headers: {}, body: "{}" }),
+      async *parseStream() { /* unused */ },
+      async parseResponse() { return []; },
+    };
+    const response = runWithWebSearch({
+      parsed: parseRequest({
+        model: "routed/model",
+        input: "Search for current docs",
+        stream: true,
+        tools: [{ type: "web_search" }],
+      }),
+      adapter,
+      forwardProvider,
+      hostedTool: { type: "web_search" },
+      incomingHeaders: new Headers({ authorization: "Bearer token" }),
+      settings: { model: "gpt-5.4-mini", reasoning: "low", timeoutMs: 30_000 },
+      maxSearches: 1,
+      abortSignal: turn.signal,
+    });
+
+    const signal = getSignal();
+    expect(signal).toBe(turn.signal);
+    expect(signal.aborted).toBe(false);
+    turn.abort("replacement turn");
+    expect(signal.aborted).toBe(true);
+    expect((await response).status).toBe(502);
+  });
+
   test("web-search sidecar fetch observes the WebSocket turn abort signal", async () => {
     const getSignal = installAbortAwareFetch();
     const turn = new AbortController();
