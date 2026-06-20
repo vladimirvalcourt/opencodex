@@ -4,7 +4,7 @@ import Providers from "./pages/Providers";
 import Models from "./pages/Models";
 import Subagents from "./pages/Subagents";
 import Logs from "./pages/Logs";
-import { IconGrid, IconServer, IconBoxes, IconBot, IconList, IconGithub, IconSun, IconMoon, IconMonitor, IconGlobe } from "./icons";
+import { IconGrid, IconServer, IconBoxes, IconBot, IconList, IconGithub, IconSun, IconMoon, IconMonitor, IconGlobe, IconPower } from "./icons";
 import { useI18n, useT, LOCALES, type TKey } from "./i18n";
 
 type Page = "dashboard" | "providers" | "models" | "subagents" | "logs";
@@ -52,6 +52,13 @@ export default function App() {
     setLocale(order[(order.indexOf(locale) + 1) % order.length]);
   };
 
+  const [stopping, setStopping] = useState(false);
+  const handleStop = async () => {
+    if (!confirm(t("dash.stopConfirm"))) return;
+    setStopping(true);
+    try { await fetch(`${API_BASE}/api/stop`, { method: "POST" }); } catch { /* connection drops */ }
+  };
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -76,6 +83,10 @@ export default function App() {
           <button type="button" className="theme-toggle" onClick={cycleTheme}
             aria-label={`${t("theme.label")}: ${t(THEME_TKEY[theme])}`} title={`${t("theme.label")}: ${t(THEME_TKEY[theme])}`}>
             <ThemeIcon /> <span className="mode">{t(THEME_TKEY[theme])}</span>
+          </button>
+          <button type="button" className="theme-toggle stop-toggle" onClick={handleStop} disabled={stopping}
+            aria-label={t("dash.stop")} title={t("dash.stop")}>
+            <IconPower /> <span className="mode">{stopping ? t("dash.stopping") : t("dash.stop")}</span>
           </button>
           <a className="sidebar-link" href="https://github.com/lidge-jun/opencodex" target="_blank" rel="noreferrer">
             <IconGithub /> {t("common.github")}

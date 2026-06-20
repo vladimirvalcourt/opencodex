@@ -13,13 +13,6 @@ export default function Dashboard({ apiBase }: { apiBase: string }) {
   const [models, setModels] = useState<ModelInfo[]>([]);
   const [modelsLoading, setModelsLoading] = useState(false);
   const [error, setError] = useState(false);
-  const [stopping, setStopping] = useState(false);
-
-  const handleStop = async () => {
-    if (!confirm(t("dash.stopConfirm"))) return;
-    setStopping(true);
-    try { await fetch(`${apiBase}/api/stop`, { method: "POST" }); } catch { /* connection drops on shutdown */ }
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -70,14 +63,7 @@ export default function Dashboard({ apiBase }: { apiBase: string }) {
 
   return (
     <>
-      <div className="page-head" style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <h2>{t("nav.dashboard")}</h2>
-        {online && (
-          <button className="btn btn-danger btn-sm" onClick={handleStop} disabled={stopping}>
-            {stopping ? t("dash.stopping") : t("dash.stop")}
-          </button>
-        )}
-      </div>
+      <div className="page-head"><h2>{t("nav.dashboard")}</h2></div>
       <p className="page-sub">{t("dash.subtitle")}</p>
 
       <div className="stat-row">
