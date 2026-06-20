@@ -5,6 +5,29 @@ export interface WsData {
   cancel?: () => void; // cancels the in-flight stream reader on client disconnect (RC2 abort parity)
 }
 
+export function buildWarmupCompletionFrames(frame: Record<string, unknown>): string[] {
+  const createdAt = Math.floor(Date.now() / 1000);
+  const baseResponse: Record<string, unknown> = {
+    id: "",
+    object: "response",
+    created_at: createdAt,
+    model: typeof frame.model === "string" ? frame.model : undefined,
+    output: [],
+  };
+  return [
+    JSON.stringify({
+      type: "response.created",
+      sequence_number: 0,
+      response: { ...baseResponse, status: "in_progress" },
+    }),
+    JSON.stringify({
+      type: "response.completed",
+      sequence_number: 1,
+      response: { ...baseResponse, status: "completed" },
+    }),
+  ];
+}
+
 // Re-frame the existing SSE bridge/passthrough output onto a WebSocket. The frames' JSON already
 // carries { type, sequence_number, ... }, so each is sent verbatim as a Text message. `[DONE]` is
 // dropped (the WS terminal is response.completed); response.heartbeat frames pass through and

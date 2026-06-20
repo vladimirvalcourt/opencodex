@@ -4,9 +4,9 @@ import { createAnthropicAdapter } from "./adapters/anthropic";
 import { createAzureAdapter } from "./adapters/azure";
 import { createGoogleAdapter } from "./adapters/google";
 import { createOpenAIChatAdapter } from "./adapters/openai-chat";
-import { createResponsesPassthroughAdapter } from "./adapters/openai-responses";
+import { createResponsesPassthroughAdapter, FORWARD_HEADERS } from "./adapters/openai-responses";
 import { bridgeToResponsesSSE, buildResponseJSON, formatErrorResponse } from "./bridge";
-import { pumpSseToWebSocket, type WsData } from "./ws-bridge";
+import { buildWarmupCompletionFrames, pumpSseToWebSocket, type WsData } from "./ws-bridge";
 import type { ServerWebSocket } from "bun";
 import { DEFAULT_SUBAGENT_MODELS, loadConfig, saveConfig, websocketsEnabled } from "./config";
 import { parseRequest } from "./responses/parser";
@@ -585,19 +585,27 @@ export function startServer(port?: number) {
         }
         if (frame.type === "response.processed") return; // ack — no-op
         if (frame.type !== "response.create") return;
+        if (frame.generate === false) {
+          for (const payload of buildWarmupCompletionFrames(frame)) {
+            if (ws.readyState === 1) ws.send(payload);
+          }
+          return;
+        }
         const payload: Record<string, unknown> = { ...frame };
         delete payload.type;
         const logCtx = { model: "unknown", provider: "unknown" };
         const fwd = new Headers({ "content-type": "application/json" });
-        const auth = ws.data.headers?.get("authorization");
-        if (auth) fwd.set("authorization", auth); // native passthrough auth is handshake-time only
+        for (const h of FORWARD_HEADERS) {
+          const v = ws.data.headers?.get(h);
+          if (v) fwd.set(h, v); // native passthrough auth is handshake-time only
+        }
         const req = new Request("http://localhost/v1/responses", {
           method: "POST",
           headers: fwd,
           body: JSON.stringify({ ...payload, stream: true }),
         });
         const response = await handleResponses(req, config, logCtx);
-        if (response.headers.get("content-type")?.includes("text/event-stream") && response.body) {
+        if (response.ok && response.body) {
           await pumpSseToWebSocket(ws, response.body);
           return;
         }

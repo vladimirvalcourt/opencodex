@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { pumpSseToWebSocket, type WsData } from "../src/ws-bridge";
+import { buildWarmupCompletionFrames, pumpSseToWebSocket, type WsData } from "../src/ws-bridge";
 import type { ServerWebSocket } from "bun";
 
 function mockWs(): { ws: ServerWebSocket<WsData>; sent: string[] } {
@@ -23,6 +23,24 @@ function sseStream(frames: string[]): ReadableStream<Uint8Array> {
 }
 
 describe("WS endpoint re-framer (120.2)", () => {
+  test("generate=false warmup completes locally without upstream", () => {
+    const frames = buildWarmupCompletionFrames({ model: "gpt-5.5", generate: false }).map(f => JSON.parse(f));
+
+    expect(frames).toHaveLength(2);
+    expect(frames[0]).toMatchObject({
+      type: "response.created",
+      sequence_number: 0,
+      response: { object: "response", status: "in_progress", model: "gpt-5.5" },
+    });
+    expect(frames[1]).toMatchObject({
+      type: "response.completed",
+      sequence_number: 1,
+      response: { object: "response", status: "completed", model: "gpt-5.5" },
+    });
+    expect(frames[1].response.id).toBe(frames[0].response.id);
+    expect(frames[1].response.id).toBe("");
+  });
+
   test("re-frames SSE data payloads as WS Text and drops [DONE]", async () => {
     const { ws, sent } = mockWs();
     await pumpSseToWebSocket(ws, sseStream([
